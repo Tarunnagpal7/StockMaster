@@ -17,7 +17,7 @@ import {
 import { clsx } from 'clsx';
 
 const Sidebar = ({ isOpen, onClose }) => {
-    const { logout } = useAuth();
+    const { logout, user } = useAuth();
     const navigate = useNavigate();
 
     const handleLogout = () => {
@@ -38,7 +38,7 @@ const Sidebar = ({ isOpen, onClose }) => {
                 { path: '/products', icon: Package, label: 'Products' },
                 { path: '/warehouses', icon: Warehouse, label: 'Warehouses' },
                 { path: '/locations', icon: Map, label: 'Locations' },
-                { path: '/users', icon: Users, label: 'Users' },
+                ...(user?.role !== 'STAFF' ? [{ path: '/users', icon: Users, label: 'Users' }] : []),
             ]
         },
         {

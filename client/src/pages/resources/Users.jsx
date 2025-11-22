@@ -4,12 +4,14 @@ import { Users as UsersIcon, Shield, Edit } from 'lucide-react';
 import Table from '../../components/Table';
 import Button from '../../components/Button';
 import Modal from '../../components/Modal';
+import { useAuth } from '../../hooks/useAuth';
 
 const Users = () => {
     const [users, setUsers] = useState([]);
     const [loading, setLoading] = useState(true);
     const [editingUser, setEditingUser] = useState(null);
     const [role, setRole] = useState('');
+    const { user } = useAuth();
 
     useEffect(() => {
         fetchUsers();
@@ -48,7 +50,7 @@ const Users = () => {
                 </span>
             )
         },
-        {
+        ...(user?.role !== 'STAFF' ? [{
             header: 'Actions', render: (row) => (
                 <button
                     onClick={() => { setEditingUser(row); setRole(row.role); }}
@@ -57,7 +59,7 @@ const Users = () => {
                     Edit Role
                 </button>
             )
-        }
+        }] : [])
     ];
 
     return (
