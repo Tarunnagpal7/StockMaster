@@ -2,6 +2,7 @@ const { PrismaClient } = require('@prisma/client');
 const bcrypt = require('bcryptjs');
 const jwt = require('jsonwebtoken');
 const { z } = require('zod');
+const { sendOTP } = require('../utils/emailService');
 
 const prisma = new PrismaClient();
 
@@ -84,16 +85,22 @@ const resetOtp = async (req, res) => {
         const user = await prisma.user.findUnique({ where: { email } });
         if (!user) return res.status(404).json({ message: 'User not found' });
 
-        const otp = '123456'; // Mock OTP
+        const otp = Math.floor(100000 + Math.random() * 900000).toString();
         const expiresAt = new Date(Date.now() + 10 * 60000); // 10 mins
 
         await prisma.resetToken.create({
             data: { userId: user.id, token: otp, expiresAt }
         });
 
-        console.log(`OTP for ${email}: ${otp}`); // Log to console for demo
-        res.json({ message: 'OTP sent' });
+        // Send Email
+        const emailSent = await sendOTP(email, otp);
+        if (!emailSent) {
+            return res.status(500).json({ message: 'Failed to send email' });
+        }
+
+        res.json({ message: 'OTP sent to your email' });
     } catch (error) {
+        console.error(error);
         res.status(500).json({ message: 'Error sending OTP' });
     }
 };

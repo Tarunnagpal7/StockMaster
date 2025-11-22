@@ -7,7 +7,7 @@ import Button from '../../components/Button';
 import { Package } from 'lucide-react';
 
 const Signup = () => {
-    const [formData, setFormData] = useState({ name: '', email: '', password: '' });
+    const [formData, setFormData] = useState({ name: '', email: '', password: '', confirmPassword: '' });
     const [error, setError] = useState('');
     const [loading, setLoading] = useState(false);
     const { login } = useAuth();
@@ -18,7 +18,11 @@ const Signup = () => {
         setError('');
         setLoading(true);
         try {
-            const data = await api.signup(formData);
+            if (formData.password !== formData.confirmPassword) {
+                throw new Error("Passwords do not match");
+            }
+            const { confirmPassword, ...signupData } = formData;
+            const data = await api.signup(signupData);
             login(data.user, data.token);
             navigate('/');
         } catch (err) {
@@ -65,6 +69,14 @@ const Signup = () => {
                         type="password"
                         value={formData.password}
                         onChange={(e) => setFormData({ ...formData, password: e.target.value })}
+                        required
+                        minLength={6}
+                    />
+                    <Input
+                        label="Confirm Password"
+                        type="password"
+                        value={formData.confirmPassword}
+                        onChange={(e) => setFormData({ ...formData, confirmPassword: e.target.value })}
                         required
                         minLength={6}
                     />

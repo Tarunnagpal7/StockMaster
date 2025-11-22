@@ -10,6 +10,7 @@ const ResetOTP = () => {
     const [email, setEmail] = useState('');
     const [otp, setOtp] = useState('');
     const [newPassword, setNewPassword] = useState('');
+    const [confirmPassword, setConfirmPassword] = useState('');
     const [error, setError] = useState('');
     const [message, setMessage] = useState('');
     const [loading, setLoading] = useState(false);
@@ -35,6 +36,9 @@ const ResetOTP = () => {
         setError('');
         setLoading(true);
         try {
+            if (newPassword !== confirmPassword) {
+                throw new Error("Passwords do not match");
+            }
             await api.resetPassword({ email, otp, newPassword });
             alert('Password reset successful! Please login.');
             navigate('/login');
@@ -94,6 +98,14 @@ const ResetOTP = () => {
                             type="password"
                             value={newPassword}
                             onChange={(e) => setNewPassword(e.target.value)}
+                            required
+                            minLength={6}
+                        />
+                        <Input
+                            label="Confirm New Password"
+                            type="password"
+                            value={confirmPassword}
+                            onChange={(e) => setConfirmPassword(e.target.value)}
                             required
                             minLength={6}
                         />
