@@ -95,4 +95,84 @@ const getDashboardStats = async (req, res) => {
     }
 };
 
-module.exports = { getDashboardStats };
+const getDashboardGraphData = async (req, res) => {
+    try {
+        const { warehouseId, period } = req.query; // period: 'WEEKLY', 'MONTHLY', '3WEEKS'
+
+        let startDate = new Date();
+        if (period === 'WEEKLY') {
+            startDate.setDate(startDate.getDate() - 7);
+        } else if (period === 'MONTHLY') {
+            startDate.setMonth(startDate.getMonth() - 1);
+        } else if (period === '3WEEKS') {
+            startDate.setDate(startDate.getDate() - 21);
+        } else {
+             startDate.setDate(startDate.getDate() - 7); // Default to weekly
+        }
+
+        const where = {
+            date: { gte: startDate },
+            status: 'COMPLETED' // Only completed transactions
+        };
+
+        if (warehouseId && warehouseId !== 'ALL') {
+            where.OR = [
+                { sourceWarehouseId: warehouseId },
+                { targetWarehouseId: warehouseId }
+            ];
+        }
+
+        const transactions = await prisma.transaction.findMany({
+            where,
+            include: {
+                items: true
+            },
+            orderBy: { date: 'asc' }
+        });
+
+        // Aggregate by date
+        const groupedData = {};
+        
+        // Initialize all dates in range to 0
+        for (let d = new Date(startDate); d <= new Date(); d.setDate(d.getDate() + 1)) {
+            const dateStr = d.toISOString().split('T')[0];
+            groupedData[dateStr] = { date: dateStr, incoming: 0, outgoing: 0 };
+        }
+
+        transactions.forEach(tx => {
+            const dateStr = tx.date.toISOString().split('T')[0];
+            if (!groupedData[dateStr]) return;
+
+            const totalQty = tx.items.reduce((sum, item) => sum + item.quantity, 0);
+
+            if (tx.type === 'IN') {
+                if (!warehouseId || warehouseId === 'ALL' || tx.targetWarehouseId === warehouseId) {
+                     groupedData[dateStr].incoming += totalQty;
+                }
+            } else if (tx.type === 'OUT') {
+                if (!warehouseId || warehouseId === 'ALL' || tx.sourceWarehouseId === warehouseId) {
+                    groupedData[dateStr].outgoing += totalQty;
+                }
+            } else if (tx.type === 'TRANSFER') {
+                 if (warehouseId && warehouseId !== 'ALL') {
+                    if (tx.targetWarehouseId === warehouseId) {
+                        groupedData[dateStr].incoming += totalQty;
+                    }
+                    if (tx.sourceWarehouseId === warehouseId) {
+                        groupedData[dateStr].outgoing += totalQty;
+                    }
+                 }
+            }
+        });
+
+        const graphData = Object.values(groupedData);
+
+        res.json(graphData);
+
+    } catch (error) {
+        console.error(error);
+        res.status(500).json({ message: 'Error fetching graph data' });
+    }
+};
+
+module.exports = { getDashboardStats, getDashboardGraphData };
