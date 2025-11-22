@@ -1,0 +1,136 @@
+// This is your Prisma schema file,
+// learn more about it in the docs: https://pris.ly/d/prisma-schema
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+model User {
+  id            String    @id @default(uuid())
+  email         String    @unique
+  passwordHash  String
+  name          String
+  role          String    @default("STAFF") // MANAGER, STAFF
+  createdAt     DateTime  @default(now())
+  
+  transactions  Transaction[]
+  resetTokens   ResetToken[]
+}
+
+model ResetToken {
+  id        String   @id @default(uuid())
+  userId    String
+  token     String   @unique // OTP or hashed token
+  expiresAt DateTime
+  createdAt DateTime @default(now())
+  
+  user      User     @relation(fields: [userId], references: [id])
+}
+
+model Warehouse {
+  id        String    @id @default(uuid())
+  name      String
+  location  String?   // Physical address or general location
+  type      String    @default("MAIN") // MAIN, STORE, RETURNS
+  
+  stock     Stock[]
+  locations Location[] // Sub-locations like Aisles, Racks
+  sourceTransactions Transaction[] @relation("SourceWarehouse")
+  targetTransactions Transaction[] @relation("TargetWarehouse")
+}
+
+model Location {
+  id          String    @id @default(uuid())
+  name        String    // "Aisle 1", "Rack B"
+  warehouseId String
+  
+  warehouse   Warehouse @relation(fields: [warehouseId], references: [id])
+  stock       Stock[]
+}
+
+model Product {
+  id          String    @id @default(uuid())
+  sku         String    @unique
+  name        String
+  description String?
+  category    String?
+  uom         String    @default("UNIT") // Unit of Measure
+  minStock    Int       @default(10)
+  
+  stock       Stock[]
+  transactionItems TransactionItem[]
+  reorderRules ReorderRule[]
+}
+
+model ReorderRule {
+  id          String    @id @default(uuid())
+  productId   String
+  minStock    Int
+  maxStock    Int
+  
+  product     Product   @relation(fields: [productId], references: [id])
+}
+
+model Stock {
+  id          String    @id @default(uuid())
+  warehouseId String
+  locationId  String?   // Optional specific location within warehouse
+  productId   String
+  quantity    Int       @default(0)
+  
+  warehouse   Warehouse @relation(fields: [warehouseId], references: [id])
+  location    Location? @relation(fields: [locationId], references: [id])
+  product     Product   @relation(fields: [productId], references: [id])
+
+  @@unique([warehouseId, locationId, productId]) // Unique stock per location per product
+}
+
+model Transaction {
+  id              String    @id @default(uuid())
+  type            String    // IN, OUT, TRANSFER, ADJUST
+  status          String    @default("DRAFT") // DRAFT, COMPLETED, CANCELLED
+  reference       String?   // Supplier Ref, Order ID
+  notes           String?
+  date            DateTime  @default(now())
+  adjustmentType  String?   // ADD, REMOVE (For ADJUST type)
+  
+  createdById     String
+  createdBy       User      @relation(fields: [createdById], references: [id])
+  
+  // For Transfers
+  sourceWarehouseId String?
+  sourceWarehouse   Warehouse? @relation("SourceWarehouse", fields: [sourceWarehouseId], references: [id])
+  
+  targetWarehouseId String?
+  targetWarehouse   Warehouse? @relation("TargetWarehouse", fields: [targetWarehouseId], references: [id])
+  
+  items           TransactionItem[]
+  ledgerEntries   Ledger[]
+}
+
+model TransactionItem {
+  id            String      @id @default(uuid())
+  transactionId String
+  productId     String
+  quantity      Int
+  
+  transaction   Transaction @relation(fields: [transactionId], references: [id])
+  product       Product     @relation(fields: [productId], references: [id])
+}
+
+model Ledger {
+  id            String      @id @default(uuid())
+  transactionId String
+  productId     String
+  warehouseId   String
+  quantityChange Int        // Positive or Negative
+  balanceAfter   Int
+  createdAt      DateTime   @default(now())
+  
+  transaction    Transaction @relation(fields: [transactionId], references: [id])
+}
