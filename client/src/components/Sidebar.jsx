@@ -36,13 +36,7 @@ const Sidebar = ({ isOpen, onClose }) => {
             title: 'Resources',
             items: [
                 { path: '/products', icon: Package, label: 'Products' },
-<<<<<<< HEAD
                 { path: '/users', icon: Users, label: 'Users' },
-=======
-                { path: '/warehouses', icon: Warehouse, label: 'Warehouses' },
-                { path: '/locations', icon: Map, label: 'Locations' },
-                ...(user?.role !== 'STAFF' ? [{ path: '/users', icon: Users, label: 'Users' }] : []),
->>>>>>> 84fbdab3a42cc72d02ac9df49ba5dfa681c92390
             ]
         },
         {
