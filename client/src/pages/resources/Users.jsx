@@ -4,7 +4,9 @@ import { Users as UsersIcon, Shield, Edit } from 'lucide-react';
 import Table from '../../components/Table';
 import Button from '../../components/Button';
 import Modal from '../../components/Modal';
+import Pagination from '../../components/Pagination';
 import { useAuth } from '../../hooks/useAuth';
+import { usePagination } from '../../hooks/usePagination';
 
 const Users = () => {
     const [users, setUsers] = useState([]);
@@ -13,14 +15,26 @@ const Users = () => {
     const [role, setRole] = useState('');
     const { user } = useAuth();
 
+    const {
+        currentPage,
+        itemsPerPage,
+        pagination,
+        setPagination,
+        handlePageChange,
+        handleItemsPerPageChange,
+        getPaginationParams
+    } = usePagination(1, 10);
+
     useEffect(() => {
         fetchUsers();
-    }, []);
+    }, [currentPage, itemsPerPage]);
 
     const fetchUsers = async () => {
         try {
-            const data = await api.getUsers();
-            setUsers(data);
+            const params = getPaginationParams();
+            const response = await api.getUsers(params);
+            setUsers(response.data);
+            setPagination(response.pagination);
         } catch (error) {
             console.error('Failed to fetch users', error);
         } finally {
@@ -71,7 +85,20 @@ const Users = () => {
                 </div>
             </div>
 
-            <Table columns={columns} data={users} isLoading={loading} />
+            <div className="bg-white rounded-lg shadow-sm border">
+                <Table columns={columns} data={users} isLoading={loading} />
+
+                {pagination && (
+                    <Pagination
+                        currentPage={pagination.currentPage}
+                        totalPages={pagination.totalPages}
+                        totalItems={pagination.totalItems}
+                        itemsPerPage={pagination.itemsPerPage}
+                        onPageChange={handlePageChange}
+                        onItemsPerPageChange={handleItemsPerPageChange}
+                    />
+                )}
+            </div>
 
             <Modal
                 isOpen={!!editingUser}

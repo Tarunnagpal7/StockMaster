@@ -1,15 +1,41 @@
 const { PrismaClient } = require('@prisma/client');
 const { z } = require('zod');
+const { getPaginationParams, createPaginatedResponse } = require('../utils/pagination');
 
 const prisma = new PrismaClient();
 
 const getUsers = async (req, res) => {
     try {
+        const { page, limit, skip } = getPaginationParams(req.query);
+        const { search, role } = req.query;
+
+        // Build where clause
+        const where = {};
+        if (role) {
+            where.role = role;
+        }
+        if (search) {
+            where.OR = [
+                { name: { contains: search, mode: 'insensitive' } },
+                { email: { contains: search, mode: 'insensitive' } }
+            ];
+        }
+
+        // Get total count
+        const totalItems = await prisma.user.count({ where });
+
+        // Get paginated users
         const users = await prisma.user.findMany({
-            select: { id: true, name: true, email: true, role: true, createdAt: true }
+            where,
+            select: { id: true, name: true, email: true, role: true, createdAt: true },
+            orderBy: { createdAt: 'desc' },
+            skip,
+            take: limit
         });
-        res.json(users);
+
+        res.json(createPaginatedResponse(users, totalItems, page, limit));
     } catch (error) {
+        console.error('Error in getUsers:', error);
         res.status(500).json({ message: 'Error fetching users' });
     }
 };

@@ -1,5 +1,6 @@
 const { PrismaClient } = require('@prisma/client');
 const { z } = require('zod');
+const { getPaginationParams, createPaginatedResponse } = require('../utils/pagination');
 
 const prisma = new PrismaClient();
 
@@ -100,17 +101,17 @@ const validateTransaction = async (req, res) => {
                 if (transaction.type === 'IN') {
                     // Increase Target
                     await tx.stock.upsert({
-                        where: { 
-                            warehouseId_productId_subLocationId: { 
-                                warehouseId: transaction.targetWarehouseId, 
+                        where: {
+                            warehouseId_productId_subLocationId: {
+                                warehouseId: transaction.targetWarehouseId,
                                 productId: item.productId,
-                                subLocationId: null 
-                            } 
+                                subLocationId: null
+                            }
                         },
                         update: { quantity: { increment: item.quantity } },
-                        create: { 
-                            warehouseId: transaction.targetWarehouseId, 
-                            productId: item.productId, 
+                        create: {
+                            warehouseId: transaction.targetWarehouseId,
+                            productId: item.productId,
                             quantity: item.quantity,
                             subLocationId: null
                         }
@@ -133,12 +134,12 @@ const validateTransaction = async (req, res) => {
                     // Decrease Source
                     // Check stock first?
                     const currentStock = await tx.stock.findUnique({
-                        where: { 
-                            warehouseId_productId_subLocationId: { 
-                                warehouseId: transaction.sourceWarehouseId, 
+                        where: {
+                            warehouseId_productId_subLocationId: {
+                                warehouseId: transaction.sourceWarehouseId,
                                 productId: item.productId,
                                 subLocationId: null
-                            } 
+                            }
                         }
                     });
                     if (!currentStock || currentStock.quantity < item.quantity) {
@@ -146,12 +147,12 @@ const validateTransaction = async (req, res) => {
                     }
 
                     await tx.stock.update({
-                        where: { 
-                            warehouseId_productId_subLocationId: { 
-                                warehouseId: transaction.sourceWarehouseId, 
+                        where: {
+                            warehouseId_productId_subLocationId: {
+                                warehouseId: transaction.sourceWarehouseId,
                                 productId: item.productId,
                                 subLocationId: null
-                            } 
+                            }
                         },
                         data: { quantity: { decrement: item.quantity } }
                     });
@@ -168,12 +169,12 @@ const validateTransaction = async (req, res) => {
                 } else if (transaction.type === 'TRANSFER') {
                     // Decrease Source
                     const currentStock = await tx.stock.findUnique({
-                        where: { 
-                            warehouseId_productId_subLocationId: { 
-                                warehouseId: transaction.sourceWarehouseId, 
+                        where: {
+                            warehouseId_productId_subLocationId: {
+                                warehouseId: transaction.sourceWarehouseId,
                                 productId: item.productId,
                                 subLocationId: null
-                            } 
+                            }
                         }
                     });
                     if (!currentStock || currentStock.quantity < item.quantity) {
@@ -181,12 +182,12 @@ const validateTransaction = async (req, res) => {
                     }
 
                     await tx.stock.update({
-                        where: { 
-                            warehouseId_productId_subLocationId: { 
-                                warehouseId: transaction.sourceWarehouseId, 
+                        where: {
+                            warehouseId_productId_subLocationId: {
+                                warehouseId: transaction.sourceWarehouseId,
                                 productId: item.productId,
                                 subLocationId: null
-                            } 
+                            }
                         },
                         data: { quantity: { decrement: item.quantity } }
                     });
@@ -204,17 +205,17 @@ const validateTransaction = async (req, res) => {
 
                     // Increase Target
                     const targetStock = await tx.stock.upsert({
-                        where: { 
-                            warehouseId_productId_subLocationId: { 
-                                warehouseId: transaction.targetWarehouseId, 
+                        where: {
+                            warehouseId_productId_subLocationId: {
+                                warehouseId: transaction.targetWarehouseId,
                                 productId: item.productId,
                                 subLocationId: null
-                            } 
+                            }
                         },
                         update: { quantity: { increment: item.quantity } },
-                        create: { 
-                            warehouseId: transaction.targetWarehouseId, 
-                            productId: item.productId, 
+                        create: {
+                            warehouseId: transaction.targetWarehouseId,
+                            productId: item.productId,
                             quantity: item.quantity,
                             subLocationId: null
                         }
@@ -240,17 +241,17 @@ const validateTransaction = async (req, res) => {
                     let newBalance = 0;
                     if (isAdd) {
                         const stock = await tx.stock.upsert({
-                            where: { 
-                                warehouseId_productId_subLocationId: { 
-                                    warehouseId, 
+                            where: {
+                                warehouseId_productId_subLocationId: {
+                                    warehouseId,
                                     productId: item.productId,
                                     subLocationId: null
-                                } 
+                                }
                             },
                             update: { quantity: { increment: adjustmentQuantity } },
-                            create: { 
-                                warehouseId, 
-                                productId: item.productId, 
+                            create: {
+                                warehouseId,
+                                productId: item.productId,
                                 quantity: adjustmentQuantity,
                                 subLocationId: null
                             }
@@ -258,24 +259,24 @@ const validateTransaction = async (req, res) => {
                         newBalance = stock.quantity;
                     } else {
                         const currentStock = await tx.stock.findUnique({
-                            where: { 
-                                warehouseId_productId_subLocationId: { 
-                                    warehouseId, 
+                            where: {
+                                warehouseId_productId_subLocationId: {
+                                    warehouseId,
                                     productId: item.productId,
                                     subLocationId: null
-                                } 
+                                }
                             }
                         });
                         if (!currentStock || currentStock.quantity < adjustmentQuantity) {
                             throw new Error(`Insufficient stock for product ${item.productId} for adjustment`);
                         }
                         const stock = await tx.stock.update({
-                            where: { 
-                                warehouseId_productId_subLocationId: { 
-                                    warehouseId, 
+                            where: {
+                                warehouseId_productId_subLocationId: {
+                                    warehouseId,
                                     productId: item.productId,
                                     subLocationId: null
-                                } 
+                                }
                             },
                             data: { quantity: { decrement: adjustmentQuantity } }
                         });
@@ -314,17 +315,38 @@ const validateTransaction = async (req, res) => {
 
 const getTransactions = async (req, res) => {
     try {
+        const { page, limit, skip } = getPaginationParams(req.query);
+        const { type, status } = req.query;
+
+        // Build where clause for filtering
+        const where = {};
+        if (type) {
+            where.type = type;
+        }
+        if (status) {
+            where.status = status;
+        }
+
+        // Get total count for pagination
+        const totalItems = await prisma.transaction.count({ where });
+
+        // Get paginated transactions
         const transactions = await prisma.transaction.findMany({
+            where,
             include: {
                 items: { include: { product: true } },
                 sourceWarehouse: true,
                 targetWarehouse: true,
                 createdBy: { select: { name: true } }
             },
-            orderBy: { date: 'desc' }
+            orderBy: { date: 'desc' },
+            skip,
+            take: limit
         });
-        res.json(transactions);
+
+        res.json(createPaginatedResponse(transactions, totalItems, page, limit));
     } catch (error) {
+        console.error('Error in getTransactions:', error);
         res.status(500).json({ message: 'Error fetching transactions' });
     }
 };
@@ -379,12 +401,12 @@ const createReorder = async (req, res) => {
         if (!product) return res.status(404).json({ message: 'Product not found' });
 
         const stock = await prisma.stock.findUnique({
-            where: { 
-                warehouseId_productId_subLocationId: { 
-                    warehouseId, 
+            where: {
+                warehouseId_productId_subLocationId: {
+                    warehouseId,
                     productId,
                     subLocationId: null
-                } 
+                }
             }
         });
 
@@ -438,7 +460,7 @@ const updateTransaction = async (req, res) => {
                     }))
                 });
             }
-            
+
             return await tx.transaction.findUnique({
                 where: { id },
                 include: { items: true }

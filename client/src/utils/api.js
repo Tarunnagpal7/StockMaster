@@ -90,10 +90,16 @@ export const api = {
     createSubLocation: (data) => apiClient.post('/sublocations', data).then(res => res.data),
     deleteSubLocation: (id) => apiClient.delete(`/sublocations/${id}`).then(res => res.data),
 
-    getUsers: () => apiClient.get('/users').then(res => res.data),
+    getUsers: (params) => {
+        const queryString = new URLSearchParams(params).toString();
+        return apiClient.get(`/users?${queryString}`).then(res => res.data);
+    },
     updateUser: (id, data) => apiClient.put(`/users/${id}`, data).then(res => res.data),
 
-    getTransactions: () => apiClient.get('/transactions').then(res => res.data),
+    getTransactions: (params) => {
+        const queryString = new URLSearchParams(params).toString();
+        return apiClient.get(`/transactions?${queryString}`).then(res => res.data);
+    },
     createTransaction: (data) => apiClient.post('/transactions', data).then(res => res.data),
     validateTransaction: (id) => apiClient.post(`/transactions/${id}/validate`).then(res => res.data),
     createReorder: (productId, warehouseId) => apiClient.post(`/transactions/reorder/${productId}/${warehouseId}`).then(res => res.data),

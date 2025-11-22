@@ -5,25 +5,31 @@ import { format } from 'date-fns';
 import { useNavigate } from 'react-router-dom';
 import Table from '../../components/Table';
 import Button from '../../components/Button';
+import Pagination from '../../components/Pagination';
 
 const Transactions = ({ typeFilter }) => {
     const [transactions, setTransactions] = useState([]);
     const [loading, setLoading] = useState(true);
     const [searchTerm, setSearchTerm] = useState('');
+    const [currentPage, setCurrentPage] = useState(1);
+    const [itemsPerPage, setItemsPerPage] = useState(10);
+    const [pagination, setPagination] = useState(null);
     const navigate = useNavigate();
 
     useEffect(() => {
         fetchTransactions();
-    }, [typeFilter]);
+    }, [typeFilter, currentPage, itemsPerPage]);
 
     const fetchTransactions = async () => {
         try {
-            const data = await api.getTransactions();
-            let filtered = data;
-            if (typeFilter) {
-                filtered = data.filter(t => t.type === typeFilter);
-            }
-            setTransactions(filtered);
+            const params = {
+                type: typeFilter,
+                page: currentPage,
+                limit: itemsPerPage
+            };
+            const response = await api.getTransactions(params);
+            setTransactions(response.data);
+            setPagination(response.pagination);
         } catch (error) {
             console.error('Failed to fetch transactions', error);
         } finally {
@@ -110,6 +116,15 @@ const Transactions = ({ typeFilter }) => {
         }
     };
 
+    const handlePageChange = (page) => {
+        setCurrentPage(page);
+    };
+
+    const handleItemsPerPageChange = (newItemsPerPage) => {
+        setItemsPerPage(newItemsPerPage);
+        setCurrentPage(1); // Reset to first page when changing items per page
+    };
+
     return (
         <div className="space-y-6">
             <div className="flex justify-between items-center">
@@ -123,7 +138,20 @@ const Transactions = ({ typeFilter }) => {
                 </Button>
             </div>
 
-            <Table columns={columns} data={transactions} isLoading={loading} />
+            <div className="bg-white rounded-lg shadow-sm border">
+                <Table columns={columns} data={transactions} isLoading={loading} />
+
+                {pagination && (
+                    <Pagination
+                        currentPage={pagination.currentPage}
+                        totalPages={pagination.totalPages}
+                        totalItems={pagination.totalItems}
+                        itemsPerPage={pagination.itemsPerPage}
+                        onPageChange={handlePageChange}
+                        onItemsPerPageChange={handleItemsPerPageChange}
+                    />
+                )}
+            </div>
         </div>
     );
 };

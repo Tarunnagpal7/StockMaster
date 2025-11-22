@@ -1,5 +1,6 @@
 const { PrismaClient } = require('@prisma/client');
 const { z } = require('zod');
+const { getPaginationParams, createPaginatedResponse } = require('../utils/pagination');
 
 const prisma = new PrismaClient();
 
@@ -17,6 +18,7 @@ const productSchema = z.object({
 const getProducts = async (req, res) => {
     try {
         const { search, category, activeOnly } = req.query;
+        const { page, limit, skip } = getPaginationParams(req.query);
 
         const where = {};
         if (activeOnly === 'true') {
@@ -32,6 +34,10 @@ const getProducts = async (req, res) => {
             ];
         }
 
+        // Get total count for pagination
+        const totalItems = await prisma.product.count({ where });
+
+        // Get paginated products
         const products = await prisma.product.findMany({
             where,
             include: {
@@ -39,7 +45,9 @@ const getProducts = async (req, res) => {
                     include: { warehouse: true }
                 }
             },
-            orderBy: { name: 'asc' }
+            orderBy: { name: 'asc' },
+            skip,
+            take: limit
         });
 
         // Calculate total stock for each product
@@ -48,7 +56,8 @@ const getProducts = async (req, res) => {
             return { ...p, totalStock };
         });
 
-        res.json(productsWithStock);
+        // Return paginated response
+        res.json(createPaginatedResponse(productsWithStock, totalItems, page, limit));
     } catch (error) {
         console.error('Error in getProducts:', error);
         res.status(500).json({ message: 'Error fetching products' });

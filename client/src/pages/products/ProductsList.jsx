@@ -3,6 +3,7 @@ import { api } from '../../utils/api';
 import { Plus, Search, Filter, Edit, Trash2, Eye } from 'lucide-react';
 import Table from '../../components/Table';
 import Button from '../../components/Button';
+import Pagination from '../../components/Pagination';
 import { useNavigate } from 'react-router-dom';
 
 const ProductsList = () => {
@@ -11,6 +12,9 @@ const ProductsList = () => {
     const [searchTerm, setSearchTerm] = useState('');
     const [category, setCategory] = useState('');
     const [activeOnly, setActiveOnly] = useState(true);
+    const [currentPage, setCurrentPage] = useState(1);
+    const [itemsPerPage, setItemsPerPage] = useState(10);
+    const [pagination, setPagination] = useState(null);
     const navigate = useNavigate();
 
     useEffect(() => {
@@ -19,7 +23,7 @@ const ProductsList = () => {
         }, 300);
 
         return () => clearTimeout(delayDebounceFn);
-    }, [searchTerm, category, activeOnly]);
+    }, [searchTerm, category, activeOnly, currentPage, itemsPerPage]);
 
     const fetchProducts = async () => {
         setLoading(true);
@@ -27,10 +31,13 @@ const ProductsList = () => {
             const params = {
                 search: searchTerm,
                 category,
-                activeOnly
+                activeOnly,
+                page: currentPage,
+                limit: itemsPerPage
             };
-            const data = await api.getProducts(params);
-            setProducts(data);
+            const response = await api.getProducts(params);
+            setProducts(response.data);
+            setPagination(response.pagination);
         } catch (error) {
             console.error('Failed to fetch products', error);
         } finally {
@@ -98,6 +105,15 @@ const ProductsList = () => {
         }
     ];
 
+    const handlePageChange = (page) => {
+        setCurrentPage(page);
+    };
+
+    const handleItemsPerPageChange = (newItemsPerPage) => {
+        setItemsPerPage(newItemsPerPage);
+        setCurrentPage(1); // Reset to first page when changing items per page
+    };
+
     // Extract unique categories for filter
     const categories = [...new Set(products.map(p => p.category).filter(Boolean))];
 
@@ -151,12 +167,25 @@ const ProductsList = () => {
                 </label>
             </div>
 
-            <Table
-                columns={columns}
-                data={products}
-                isLoading={loading}
-                onRowClick={(row) => navigate(`/products/${row.id}`)}
-            />
+            <div className="bg-white rounded-lg shadow-sm border">
+                <Table
+                    columns={columns}
+                    data={products}
+                    isLoading={loading}
+                    onRowClick={(row) => navigate(`/products/${row.id}`)}
+                />
+
+                {pagination && (
+                    <Pagination
+                        currentPage={pagination.currentPage}
+                        totalPages={pagination.totalPages}
+                        totalItems={pagination.totalItems}
+                        itemsPerPage={pagination.itemsPerPage}
+                        onPageChange={handlePageChange}
+                        onItemsPerPageChange={handleItemsPerPageChange}
+                    />
+                )}
+            </div>
         </div>
     );
 };
