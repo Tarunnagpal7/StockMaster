@@ -39,16 +39,7 @@ const getDashboardStats = async (req, res) => {
         if (warehouseId && warehouseId !== 'ALL') {
              // For specific warehouse, we can just check the stock table directly
              // This assumes minStock is on the Product, so we need to join
-             const lowStockItems = await prisma.stock.findMany({
-                where: {
-                    warehouseId,
-                    quantity: {
-                        lte: prisma.product.fields.minStock // This might not work directly in all Prisma versions depending on relation, but let's try a raw query for safety and speed as promised
-                    }
-                }
-             });
-             // Actually, Prisma doesn't support comparing fields across relations easily in where clause without raw query or fetching.
-             // Let's use a raw query for maximum performance as planned.
+             // We use raw query for performance and to handle the join condition correctly
              const result = await prisma.$queryRaw`
                 SELECT COUNT(*)::int as count
                 FROM "Stock" s
@@ -132,7 +123,7 @@ const getDashboardGraphData = async (req, res) => {
         }
 
         const where = {
-            date: { gte: startDate },
+            createdAt: { gte: startDate },
             status: 'COMPLETED' // Only completed transactions
         };
 
@@ -148,7 +139,7 @@ const getDashboardGraphData = async (req, res) => {
             include: {
                 items: true
             },
-            orderBy: { date: 'asc' }
+            orderBy: { createdAt: 'asc' }
         });
 
         // Aggregate by date
@@ -161,7 +152,7 @@ const getDashboardGraphData = async (req, res) => {
         }
 
         transactions.forEach(tx => {
-            const dateStr = tx.date.toISOString().split('T')[0];
+            const dateStr = tx.createdAt.toISOString().split('T')[0];
             if (!groupedData[dateStr]) return;
 
             const totalQty = tx.items.reduce((sum, item) => sum + item.quantity, 0);
@@ -241,4 +232,71 @@ const getDashboardPieChartData = async (req, res) => {
     }
 };
 
-module.exports = { getDashboardStats, getDashboardGraphData, getDashboardPieChartData };
+const getTopProducts = async (req, res) => {
+    try {
+        const { warehouseId, period } = req.query; // period: 'WEEKLY', 'MONTHLY', '3WEEKS'
+
+        let startDate = new Date();
+        if (period === 'WEEKLY') {
+            startDate.setDate(startDate.getDate() - 7);
+        } else if (period === 'MONTHLY') {
+            startDate.setMonth(startDate.getMonth() - 1);
+        } else if (period === '3WEEKS') {
+            startDate.setDate(startDate.getDate() - 21);
+        } else {
+             startDate.setDate(startDate.getDate() - 30); // Default to monthly for top products if not specified
+        }
+
+        const where = {
+            transaction: {
+                createdAt: { gte: startDate },
+                status: 'COMPLETED',
+                type: 'OUT' // We are looking for top moving (outgoing) products
+            }
+        };
+
+        if (warehouseId && warehouseId !== 'ALL') {
+            where.transaction.sourceWarehouseId = warehouseId;
+        }
+
+        const topProducts = await prisma.transactionItem.groupBy({
+            by: ['productId'],
+            where,
+            _sum: {
+                quantity: true
+            },
+            orderBy: {
+                _sum: {
+                    quantity: 'desc'
+                }
+            },
+            take: 5
+        });
+
+        // Fetch product details
+        const productIds = topProducts.map(p => p.productId);
+        const products = await prisma.product.findMany({
+            where: { id: { in: productIds } },
+            select: { id: true, name: true, sku: true, category: true }
+        });
+
+        const formattedData = topProducts.map(item => {
+            const product = products.find(p => p.id === item.productId);
+            return {
+                id: item.productId,
+                name: product ? product.name : 'Unknown',
+                sku: product ? product.sku : 'Unknown',
+                category: product ? product.category : 'Unknown',
+                quantity: item._sum.quantity
+            };
+        });
+
+        res.json(formattedData);
+
+    } catch (error) {
+        console.error(error);
+        res.status(500).json({ message: 'Error fetching top products' });
+    }
+};
+
+module.exports = { getDashboardStats, getDashboardGraphData, getDashboardPieChartData, getTopProducts };

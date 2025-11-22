@@ -54,6 +54,7 @@ model Product {
   uom              String            @default("UNIT")
   minStock         Int               @default(10)
   isActive         Boolean           @default(true)
+  createdAt        DateTime          @default(now())
   price            Float             @default(0.0)
   stock            Stock[]
   transactionItems TransactionItem[]
@@ -79,6 +80,7 @@ model Transaction {
   reference         String?
   notes             String?
   date              DateTime          @default(now())
+  createdAt         DateTime          @default(now())
   createdById       String
   sourceWarehouseId String?
   targetWarehouseId String?
