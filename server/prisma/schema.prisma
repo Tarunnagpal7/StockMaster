@@ -20,15 +20,15 @@ model User {
 model Warehouse {
   id                 String        @id @default(uuid())
   name               String
-  shortcode          String        @unique
-  locationId         String
-  location           Location      @relation(fields: [locationId], references: [id])
   type               String        @default("MAIN")
   capacity           Int           @default(0)
+  locationId         String
+  shortcode          String        @unique
   stock              Stock[]
   subLocations       SubLocation[]
   sourceTransactions Transaction[] @relation("SourceWarehouse")
   targetTransactions Transaction[] @relation("TargetWarehouse")
+  location           Location      @relation(fields: [locationId], references: [id])
 }
 
 model Location {
@@ -41,8 +41,8 @@ model SubLocation {
   id          String    @id @default(uuid())
   name        String
   warehouseId String
-  warehouse   Warehouse @relation(fields: [warehouseId], references: [id])
   stock       Stock[]
+  warehouse   Warehouse @relation(fields: [warehouseId], references: [id])
 }
 
 model Product {
@@ -53,8 +53,8 @@ model Product {
   category         String?
   uom              String            @default("UNIT")
   minStock         Int               @default(10)
-  price            Float             @default(0)
   isActive         Boolean           @default(true)
+  price            Float             @default(0.0)
   stock            Stock[]
   transactionItems TransactionItem[]
 }
@@ -63,11 +63,11 @@ model Stock {
   id            String       @id @default(uuid())
   warehouseId   String
   productId     String
-  subLocationId String?
   quantity      Int          @default(0)
+  subLocationId String?
   product       Product      @relation(fields: [productId], references: [id])
-  warehouse     Warehouse    @relation(fields: [warehouseId], references: [id])
   subLocation   SubLocation? @relation(fields: [subLocationId], references: [id])
+  warehouse     Warehouse    @relation(fields: [warehouseId], references: [id])
 
   @@unique([warehouseId, productId, subLocationId])
 }
