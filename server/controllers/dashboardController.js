@@ -21,22 +21,37 @@ const getDashboardStats = async (req, res) => {
         if (type && type !== 'ALL') transactionFilter.type = type;
 
         // 1. KPIs
-        const totalProducts = await prisma.product.count({ where: productFilter });
+        let totalProducts;
+        if (warehouseId && warehouseId !== 'ALL') {
+            // If specific warehouse, count distinct products in that warehouse
+            const warehouseStock = await prisma.stock.findMany({
+                where: { warehouseId },
+                select: { productId: true },
+                distinct: ['productId']
+            });
+            totalProducts = warehouseStock.length;
+        } else {
+            totalProducts = await prisma.product.count({ where: productFilter });
+        }
 
         // Fix low stock count query - using relation correctly
         // We need to find products where the SUM of stock quantity is less than minStock
-        // Prisma doesn't support aggregation in where clause directly easily.
-        // For now, let's fetch all products and filter in memory (not efficient but works for MVP)
-        // OR check if ANY stock entry is low (which is what the previous query did but might be wrong logic)
-
-        // Better approach for MVP:
+        
         const allProducts = await prisma.product.findMany({
             where: productFilter,
             include: { stock: true }
         });
 
         const lowStockCount = allProducts.filter(p => {
-            const totalStock = p.stock.reduce((acc, s) => acc + s.quantity, 0);
+            let totalStock = 0;
+            if (warehouseId && warehouseId !== 'ALL') {
+                // Filter stock for specific warehouse
+                const stockEntry = p.stock.find(s => s.warehouseId === warehouseId);
+                totalStock = stockEntry ? stockEntry.quantity : 0;
+            } else {
+                // Sum all stock
+                totalStock = p.stock.reduce((acc, s) => acc + s.quantity, 0);
+            }
             return totalStock <= p.minStock;
         }).length;
 
