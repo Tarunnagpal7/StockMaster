@@ -11,7 +11,9 @@ import {
     Building2,
     ChevronDown,
     Check,
-    Calendar
+    Calendar,
+    PieChart as PieChartIcon,
+    BarChart3
 } from 'lucide-react';
 import {
     AreaChart,
@@ -23,7 +25,10 @@ import {
     ResponsiveContainer,
     BarChart,
     Bar,
-    Legend
+    Legend,
+    PieChart,
+    Pie,
+    Cell
 } from 'recharts';
 import Loader from '../../components/Loader';
 import { format } from 'date-fns';
@@ -31,9 +36,8 @@ import { format } from 'date-fns';
 const AdminDashboard = () => {
     const [stats, setStats] = useState(null);
     const [graphData, setGraphData] = useState([]);
-    const [initialLoading, setInitialLoading] = useState(true);
-    const [statsLoading, setStatsLoading] = useState(false);
-    const [graphLoading, setGraphLoading] = useState(false);
+    const [pieData, setPieData] = useState([]);
+    const [loading, setLoading] = useState(true);
     const [error, setError] = useState(null);
     const [warehouses, setWarehouses] = useState([]);
     const [isDropdownOpen, setIsDropdownOpen] = useState(false);
@@ -48,17 +52,19 @@ const AdminDashboard = () => {
 
     const [graphPeriod, setGraphPeriod] = useState('WEEKLY'); // WEEKLY, MONTHLY, 3WEEKS
 
+    const COLORS = ['#7c3aed', '#f59e0b', '#10b981', '#3b82f6', '#f43f5e', '#8b5cf6', '#ec4899'];
+
     useEffect(() => {
         loadWarehouses();
     }, []);
 
     useEffect(() => {
-        loadStats();
-    }, [filters]);
+        loadAllData();
+    }, [filters.warehouseId]);
 
     useEffect(() => {
         loadGraphData();
-    }, [filters.warehouseId, graphPeriod]);
+    }, [graphPeriod]);
 
     useEffect(() => {
         const handleClickOutside = (event) => {
@@ -82,29 +88,44 @@ const AdminDashboard = () => {
         }
     };
 
-    const loadStats = async () => {
-        setStatsLoading(true);
+    const loadAllData = async () => {
+        setLoading(true);
         setError(null);
         try {
-            const data = await api.getDashboardStats(filters);
-            setStats(data);
+            const [statsData, graphRes, pieRes] = await Promise.all([
+                api.getDashboardStats(filters),
+                api.getDashboardGraphData({ warehouseId: filters.warehouseId, period: graphPeriod }),
+                api.getDashboardPieChartData({ warehouseId: filters.warehouseId })
+            ]);
+
+            setStats(statsData);
+            
+            // Format graph data
+            const formattedGraphData = graphRes.map(item => ({
+                ...item,
+                displayDate: format(new Date(item.date), graphPeriod === 'MONTHLY' ? 'MMM d' : 'EEE')
+            }));
+            setGraphData(formattedGraphData);
+
+            setPieData(pieRes);
+
         } catch (error) {
             console.error(error);
             setError('Failed to load dashboard data.');
         } finally {
-            setInitialLoading(false);
-            setStatsLoading(false);
+            setLoading(false);
         }
     };
 
     const loadGraphData = async () => {
-        setGraphLoading(true);
+        // Only reload graph if not initial load (handled by loadAllData)
+        if (loading) return;
+        
         try {
             const data = await api.getDashboardGraphData({ 
                 warehouseId: filters.warehouseId, 
                 period: graphPeriod 
             });
-            // Format dates for display
             const formattedData = data.map(item => ({
                 ...item,
                 displayDate: format(new Date(item.date), graphPeriod === 'MONTHLY' ? 'MMM d' : 'EEE')
@@ -112,18 +133,16 @@ const AdminDashboard = () => {
             setGraphData(formattedData);
         } catch (error) {
             console.error('Failed to load graph data', error);
-        } finally {
-            setGraphLoading(false);
         }
     };
 
-    if (initialLoading) return <div className="flex justify-center py-12"><Loader size="lg" /></div>;
+    if (loading) return <div className="flex justify-center py-12"><Loader size="lg" /></div>;
 
     if (error && !stats) {
         return (
             <div className="text-center py-12">
                 <p className="text-slate-500 mb-4">{error}</p>
-                <button onClick={loadStats} className="btn btn-primary">Retry</button>
+                <button onClick={loadAllData} className="btn btn-primary">Retry</button>
             </div>
         );
     }
@@ -143,7 +162,7 @@ const AdminDashboard = () => {
     );
 
     return (
-        <div className="space-y-6 max-w-7xl mx-auto">
+        <div className="space-y-6 max-w-7xl mx-auto pb-8">
             {/* Header & Filters */}
             <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
                 <div>
@@ -154,7 +173,7 @@ const AdminDashboard = () => {
                 <div className="relative" ref={dropdownRef}>
                     <button
                         onClick={() => setIsDropdownOpen(!isDropdownOpen)}
-                        disabled={statsLoading}
+                        disabled={loading}
                         className="flex items-center bg-white border border-slate-200 rounded-lg shadow-sm px-4 py-2.5 hover:border-blue-500 transition-all duration-200 min-w-[220px] justify-between disabled:opacity-60 disabled:cursor-not-allowed group"
                     >
                         <div className="flex items-center">
@@ -243,7 +262,7 @@ const AdminDashboard = () => {
             </div>
 
             <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-                {/* Main Graph */}
+                {/* Main Graph - Stock Movement */}
                 <div className="bg-white rounded-xl border border-slate-200 shadow-sm p-6 lg:col-span-2 flex flex-col">
                     <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center mb-6 gap-4">
                         <div>
@@ -268,11 +287,7 @@ const AdminDashboard = () => {
                     </div>
 
                     <div className="flex-1 min-h-[300px] w-full">
-                        {graphLoading ? (
-                            <div className="h-full flex items-center justify-center">
-                                <Loader />
-                            </div>
-                        ) : graphData.length > 0 ? (
+                        {graphData.length > 0 ? (
                             <ResponsiveContainer width="100%" height="100%">
                                 <AreaChart data={graphData} margin={{ top: 10, right: 10, left: -20, bottom: 0 }}>
                                     <defs>
@@ -389,6 +404,106 @@ const AdminDashboard = () => {
                         <button className="w-full py-2 text-sm font-medium text-blue-600 hover:bg-blue-50 rounded-lg transition-colors">
                             View All Transactions
                         </button>
+                    </div>
+                </div>
+            </div>
+
+            {/* Bottom Row: Category Distribution Charts */}
+            <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+                {/* Product Distribution (Pie) */}
+                <div className="bg-white rounded-xl border border-slate-200 shadow-sm p-6 flex flex-col">
+                    <div className="flex justify-between items-center mb-4">
+                        <div>
+                            <h3 className="text-lg font-bold text-slate-900">Product Distribution</h3>
+                            <p className="text-sm text-slate-500">Number of products per category</p>
+                        </div>
+                        <PieChartIcon className="w-5 h-5 text-slate-400" />
+                    </div>
+                    <div className="h-[300px] w-full">
+                        {pieData.length > 0 ? (
+                            <ResponsiveContainer width="100%" height="100%">
+                                <PieChart>
+                                    <Pie
+                                        data={pieData}
+                                        cx="50%"
+                                        cy="50%"
+                                        innerRadius={60}
+                                        outerRadius={100}
+                                        paddingAngle={5}
+                                        dataKey="value"
+                                    >
+                                        {pieData.map((entry, index) => (
+                                            <Cell key={`cell-${index}`} fill={COLORS[index % COLORS.length]} />
+                                        ))}
+                                    </Pie>
+                                    <Tooltip 
+                                        contentStyle={{ 
+                                            borderRadius: '8px', 
+                                            border: 'none', 
+                                            boxShadow: '0 4px 6px -1px rgb(0 0 0 / 0.1)',
+                                            padding: '8px'
+                                        }}
+                                    />
+                                    <Legend 
+                                        layout="vertical" 
+                                        verticalAlign="middle" 
+                                        align="right"
+                                        wrapperStyle={{ fontSize: '12px' }}
+                                    />
+                                </PieChart>
+                            </ResponsiveContainer>
+                        ) : (
+                            <div className="h-full flex flex-col items-center justify-center text-slate-400">
+                                <p>No category data</p>
+                            </div>
+                        )}
+                    </div>
+                </div>
+
+                {/* Stock Quantity Distribution (Bar) */}
+                <div className="bg-white rounded-xl border border-slate-200 shadow-sm p-6 flex flex-col">
+                    <div className="flex justify-between items-center mb-4">
+                        <div>
+                            <h3 className="text-lg font-bold text-slate-900">Stock by Category</h3>
+                            <p className="text-sm text-slate-500">Total stock quantity per category</p>
+                        </div>
+                        <BarChart3 className="w-5 h-5 text-slate-400" />
+                    </div>
+                    <div className="h-[300px] w-full">
+                        {pieData.length > 0 ? (
+                            <ResponsiveContainer width="100%" height="100%">
+                                <BarChart data={pieData} layout="vertical" margin={{ top: 5, right: 30, left: 40, bottom: 5 }}>
+                                    <CartesianGrid strokeDasharray="3 3" horizontal={true} vertical={false} stroke="#f1f5f9" />
+                                    <XAxis type="number" hide />
+                                    <YAxis 
+                                        dataKey="name" 
+                                        type="category" 
+                                        axisLine={false} 
+                                        tickLine={false} 
+                                        tick={{ fill: '#64748b', fontSize: 12 }} 
+                                        width={100}
+                                    />
+                                    <Tooltip
+                                        contentStyle={{ 
+                                            borderRadius: '8px', 
+                                            border: 'none', 
+                                            boxShadow: '0 4px 6px -1px rgb(0 0 0 / 0.1)',
+                                            padding: '8px'
+                                        }}
+                                        cursor={{ fill: '#f8fafc' }}
+                                    />
+                                    <Bar dataKey="stockValue" name="Stock Quantity" radius={[0, 4, 4, 0]}>
+                                        {pieData.map((entry, index) => (
+                                            <Cell key={`cell-${index}`} fill={COLORS[index % COLORS.length]} />
+                                        ))}
+                                    </Bar>
+                                </BarChart>
+                            </ResponsiveContainer>
+                        ) : (
+                            <div className="h-full flex flex-col items-center justify-center text-slate-400">
+                                <p>No stock data</p>
+                            </div>
+                        )}
                     </div>
                 </div>
             </div>

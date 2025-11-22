@@ -108,6 +108,10 @@ export const api = {
         const queryString = new URLSearchParams(params).toString();
         return apiClient.get(`/dashboard/graph?${queryString}`).then(res => res.data);
     },
+    getDashboardPieChartData: (params) => {
+        const queryString = new URLSearchParams(params).toString();
+        return apiClient.get(`/dashboard/pie-chart?${queryString}`).then(res => res.data);
+    },
 
     // Generic methods
     get: (url, config) => apiClient.get(url, config),
