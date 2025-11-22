@@ -19,7 +19,8 @@ import Warehouses from '../pages/resources/Warehouses';
 import Locations from '../pages/resources/Locations';
 import Users from '../pages/resources/Users';
 import ProductForm from '../pages/products/ProductForm';
-import ProductDetail from '../pages/products/ProductDetail';
+import Profile from '../pages/profile/Profile';
+import NotFound from '../pages/NotFound';
 
 // Auth Guard (Simple wrapper for now)
 import { useAuth } from '../hooks/useAuth';
@@ -49,6 +50,7 @@ export const router = createBrowserRouter([
         path: '/',
         element: <ProtectedRoute><DashboardLayout /></ProtectedRoute>,
         children: [
+            { path: 'profile', element: <Profile /> },
             { index: true, element: <Dashboard /> },
             { path: 'products', element: <ProductsList /> },
             { path: 'products/new', element: <ProductForm /> },
@@ -69,6 +71,8 @@ export const router = createBrowserRouter([
             { path: 'operations/adjustments/new', element: <AdjustmentForm /> },
             { path: 'operations/transfers', element: <Transfers /> },
             { path: 'operations/transfers/new', element: <TransferForm /> },
+
+            { path: '*', element: <NotFound /> },
         ]
     }
 ]);

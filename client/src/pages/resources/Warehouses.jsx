@@ -62,6 +62,14 @@ const Warehouses = () => {
         }
     ];
 
+    if (loading) {
+        return (
+            <div className="flex items-center justify-center h-64">
+                <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600"></div>
+            </div>
+        );
+    }
+
     return (
         <div className="space-y-6">
             <div className="flex justify-between items-center">
@@ -92,9 +100,6 @@ const Warehouses = () => {
                             {warehouse.location}
                         </div>
                         <div className="pt-4 border-t flex justify-between items-center">
-                            <div className="text-sm text-gray-500">
-                                Capacity: <span className="font-medium text-gray-900">{warehouse.capacity}</span>
-                            </div>
                             <button className="text-blue-600 hover:text-blue-700 text-sm font-medium">
                                 Manage
                             </button>
@@ -121,13 +126,7 @@ const Warehouses = () => {
                         onChange={(e) => setFormData({ ...formData, location: e.target.value })}
                         required
                     />
-                    <Input
-                        label="Capacity"
-                        type="number"
-                        value={formData.capacity}
-                        onChange={(e) => setFormData({ ...formData, capacity: e.target.value })}
-                        required
-                    />
+
                     <div className="flex justify-end gap-3 pt-4">
                         <Button type="button" variant="outline" onClick={() => setIsModalOpen(false)}>
                             Cancel
