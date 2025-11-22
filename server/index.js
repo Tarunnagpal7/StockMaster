@@ -25,6 +25,7 @@ app.use('/api/auth', authRoutes);
 app.use('/api/products', productRoutes);
 app.use('/api/warehouses', warehouseRoutes);
 app.use('/api/locations', require('./routes/locationRoutes'));
+app.use('/api/sublocations', require('./routes/subLocationRoutes'));
 app.use('/api/transactions', transactionRoutes);
 app.use('/api/dashboard', dashboardRoutes);
 app.use('/api/users', require('./routes/userRoutes'));

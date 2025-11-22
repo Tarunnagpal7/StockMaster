@@ -5,16 +5,16 @@ const prisma = new PrismaClient();
 
 const locationSchema = z.object({
     name: z.string().min(1),
-    warehouseId: z.string().uuid(),
 });
 
 const getLocations = async (req, res) => {
     try {
         const locations = await prisma.location.findMany({
-            include: { warehouse: true }
+            include: { warehouses: true }
         });
         res.json(locations);
     } catch (error) {
+        console.error('Error fetching locations:', error);
         res.status(500).json({ message: 'Error fetching locations' });
     }
 };
