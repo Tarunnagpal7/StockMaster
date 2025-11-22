@@ -1,9 +1,32 @@
-import React from 'react';
-import { Bell, Search, Menu, User } from 'lucide-react';
+import React, { useState } from 'react';
+import { Bell, Search, Menu, User, LogOut } from 'lucide-react';
+import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../hooks/useAuth';
 
 const Header = ({ onMenuClick }) => {
-    const { user } = useAuth();
+    const { user, logout } = useAuth();
+    const [isProfileOpen, setIsProfileOpen] = useState(false);
+    const navigate = useNavigate();
+    const menuRef = React.useRef(null);
+
+    // Close menu when clicking outside
+    React.useEffect(() => {
+        const handleClickOutside = (event) => {
+            if (menuRef.current && !menuRef.current.contains(event.target)) {
+                setIsProfileOpen(false);
+            }
+        };
+
+        document.addEventListener('mousedown', handleClickOutside);
+        return () => {
+            document.removeEventListener('mousedown', handleClickOutside);
+        };
+    }, []);
+
+    const handleLogout = () => {
+        logout();
+        navigate('/login');
+    };
 
     return (
         <header className="h-16 bg-white border-b border-slate-200 sticky top-0 z-30 px-4 sm:px-6 lg:px-8">
@@ -35,16 +58,50 @@ const Header = ({ onMenuClick }) => {
 
                     <div className="h-8 w-px bg-slate-200 mx-1 hidden sm:block"></div>
 
-                    <div className="flex items-center gap-3 pl-1">
-                        <div className="text-right hidden sm:block">
-                            <p className="text-sm font-medium text-slate-900">{user?.name || 'User'}</p>
-                            <p className="text-xs text-slate-500">{user?.role || 'Staff'}</p>
-                        </div>
-                        <div className="w-9 h-9 bg-blue-100 rounded-full flex items-center justify-center border-2 border-white shadow-sm">
-                            <span className="text-sm font-semibold text-blue-700">
-                                {user?.name?.charAt(0).toUpperCase() || 'U'}
-                            </span>
-                        </div>
+                    <div className="relative" ref={menuRef}>
+                        <button
+                            onClick={() => setIsProfileOpen(!isProfileOpen)}
+                            className="flex items-center gap-3 pl-1 hover:bg-slate-50 rounded-lg p-1 transition-colors"
+                        >
+                            <div className="text-right hidden sm:block">
+                                <p className="text-sm font-medium text-slate-900">{user?.name || 'User'}</p>
+                                <p className="text-xs text-slate-500">{user?.role || 'Staff'}</p>
+                            </div>
+                            <div className="w-9 h-9 bg-blue-100 rounded-full flex items-center justify-center border-2 border-white shadow-sm">
+                                <span className="text-sm font-semibold text-blue-700">
+                                    {user?.name?.charAt(0).toUpperCase() || 'U'}
+                                </span>
+                            </div>
+                        </button>
+
+                        {/* Dropdown Menu */}
+                        {isProfileOpen && (
+                            <div className="absolute right-0 mt-2 w-48 bg-white rounded-xl shadow-lg border border-slate-100 py-1 animate-in fade-in zoom-in-95 duration-200">
+                                <div className="px-4 py-2 border-b border-slate-100 sm:hidden">
+                                    <p className="text-sm font-medium text-slate-900">{user?.name || 'User'}</p>
+                                    <p className="text-xs text-slate-500">{user?.role || 'Staff'}</p>
+                                </div>
+
+                                <button
+                                    onClick={() => {
+                                        setIsProfileOpen(false);
+                                        navigate('/profile');
+                                    }}
+                                    className="w-full text-left px-4 py-2 text-sm text-slate-700 hover:bg-slate-50 flex items-center gap-2"
+                                >
+                                    <User className="w-4 h-4" />
+                                    My Profile
+                                </button>
+
+                                <button
+                                    onClick={handleLogout}
+                                    className="w-full text-left px-4 py-2 text-sm text-red-600 hover:bg-red-50 flex items-center gap-2"
+                                >
+                                    <LogOut className="w-4 h-4" />
+                                    Logout
+                                </button>
+                            </div>
+                        )}
                     </div>
                 </div>
             </div>

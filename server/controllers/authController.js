@@ -60,7 +60,13 @@ const signup = async (req, res) => {
 const me = async (req, res) => {
     try {
         const user = await prisma.user.findUnique({ where: { id: req.user.id } });
-        res.json({ id: user.id, name: user.name, email: user.email, role: user.role });
+        res.json({
+            id: user.id,
+            name: user.name,
+            email: user.email,
+            role: user.role,
+            createdAt: user.createdAt
+        });
     } catch (error) {
         res.status(500).json({ message: 'Error fetching user' });
     }
