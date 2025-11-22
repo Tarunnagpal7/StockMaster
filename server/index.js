@@ -32,7 +32,6 @@ app.use('/api/users', require('./routes/userRoutes'));
 
 
 
-
 // Routes
 app.get('/', (req, res) => {
     res.json({ message: 'StockMaster API is running' });
